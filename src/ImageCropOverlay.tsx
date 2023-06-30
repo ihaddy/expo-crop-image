@@ -1,12 +1,8 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import {
-  GestureEvent,
   GestureHandlerRootView,
-  HandlerStateChangeEvent,
-  HandlerStateChangeEventPayload,
   PanGestureHandler,
-  PanGestureHandlerEventPayload,
   State,
 } from 'react-native-gesture-handler'
 import { useRecoilState, useRecoilValue } from 'recoil'
@@ -17,25 +13,16 @@ import {
   editorOptionsState,
   imageBoundsState,
 } from './Store'
-
 const horizontalSections = ['top', 'middle', 'bottom']
 const verticalSections = ['left', 'middle', 'right']
-
-type GestureHandlerEventPayloadType =
-  GestureEvent<PanGestureHandlerEventPayload>
-type HandlerStateChangeEventType =
-  HandlerStateChangeEvent<PanGestureHandlerEventPayload>
-
 const ImageCropOverlay = () => {
   const [selectedFrameSection, setSelectedFrameSection] = useState('')
   const [cropSize, setCropSize] = useRecoilState(cropSizeState)
   const [imageBounds] = useRecoilState(imageBoundsState)
   const [accumulatedPan, setAccumulatedPan] =
     useRecoilState(accumulatedPanState)
-
   const { gridOverlayColor, coverMarker, overlayCropColor } =
     useRecoilValue(editorOptionsState)
-
   const { fixedAspectRatio, minimumCropDimensions } = useContext(EditorContext)
   const [animatedCropSize] = useState({
     width: new Animated.Value(cropSize.width),
@@ -43,7 +30,6 @@ const ImageCropOverlay = () => {
   })
   const panX = useRef(new Animated.Value(imageBounds.x))
   const panY = useRef(new Animated.Value(imageBounds.y))
-
   useEffect(() => {
     checkCropBounds({
       translationX: 0,
@@ -54,32 +40,31 @@ const ImageCropOverlay = () => {
   }, [cropSize])
 
   useEffect(() => {
-    const newSize = { width: 0, height: 0 }
-    const { width, height } = imageBounds
-    const imageAspectRatio = width / height
+    if (fixedAspectRatio !== 777) {
+      const newSize = { width: 0, height: 0 }
+      const { width, height } = imageBounds
+      const imageAspectRatio = width / height
 
-    if (fixedAspectRatio < imageAspectRatio) {
-      newSize.height = height
-      newSize.width = height * fixedAspectRatio
-    } else {
-      newSize.width = width
-      newSize.height = width / fixedAspectRatio
+      if (fixedAspectRatio < imageAspectRatio) {
+        newSize.height = height
+        newSize.width = height * fixedAspectRatio
+      } else {
+        newSize.width = width
+        newSize.height = width / fixedAspectRatio
+      }
+
+      setCropSize(newSize)
     }
-
-    setCropSize(newSize)
   }, [imageBounds])
-
   const isMovingSection = () =>
     selectedFrameSection === 'topmiddle' ||
     selectedFrameSection === 'middleleft' ||
     selectedFrameSection === 'middleright' ||
     selectedFrameSection === 'middlemiddle' ||
     selectedFrameSection === 'bottommiddle'
-
   const isLeft = selectedFrameSection.endsWith('left')
   const isTop = selectedFrameSection.startsWith('top')
-
-  const onOverlayMove = ({ nativeEvent }: GestureHandlerEventPayloadType) => {
+  const onOverlayMove = ({ nativeEvent }) => {
     if (selectedFrameSection !== '') {
       if (isMovingSection()) {
         Animated.event(
@@ -93,15 +78,12 @@ const ImageCropOverlay = () => {
         )(nativeEvent)
       } else {
         const { x, y } = getTargetCropFrameBounds(nativeEvent)
-
         if (isTop) {
           panY.current.setValue(-y)
         }
-
         if (isLeft) {
           panX.current.setValue(-x)
         }
-
         animatedCropSize.width.setValue(cropSize.width + x)
         animatedCropSize.height.setValue(cropSize.height + y)
       }
@@ -109,7 +91,6 @@ const ImageCropOverlay = () => {
       const { x, y } = nativeEvent
       const { width: initialWidth, height: initialHeight } = cropSize
       let position = ''
-
       if (y / initialHeight < 0.333) {
         position = position + 'top'
       } else if (y / initialHeight < 0.667) {
@@ -117,7 +98,6 @@ const ImageCropOverlay = () => {
       } else {
         position = position + 'bottom'
       }
-
       if (x / initialWidth < 0.333) {
         position = position + 'left'
       } else if (x / initialWidth < 0.667) {
@@ -125,121 +105,102 @@ const ImageCropOverlay = () => {
       } else {
         position = position + 'right'
       }
-
       setSelectedFrameSection(position)
     }
   }
-
-  type Translate = {
-    translationX: number
-    translationY: number
-  }
-
-  const getTargetCropFrameBounds = ({
-    translationX,
-    translationY,
-  }: Translate) => {
+  const getTargetCropFrameBounds = ({ translationX, translationY }) => {
     let x = 0
     let y = 0
-
     if (translationX && translationY) {
-      if (translationX < translationY) {
-        x = (isLeft ? -1 : 1) * translationX
-        y = x / fixedAspectRatio
+      if (fixedAspectRatio !== 777) {
+        if (translationX < translationY) {
+          x = (isLeft ? -1 : 1) * translationX
+          y = x / fixedAspectRatio
+        } else {
+          y = (isTop ? -1 : 1) * translationY
+          x = y * fixedAspectRatio
+        }
       } else {
+        x = (isLeft ? -1 : 1) * translationX
         y = (isTop ? -1 : 1) * translationY
-        x = y * fixedAspectRatio
       }
     }
-
     return { x, y }
   }
-
-  const onOverlayRelease = (
-    nativeEvent: Readonly<
-      HandlerStateChangeEventPayload & PanGestureHandlerEventPayload
-    >,
-  ) => {
+  const onOverlayRelease = (nativeEvent) => {
     isMovingSection()
       ? checkCropBounds(nativeEvent)
       : checkResizeBounds(nativeEvent)
     setSelectedFrameSection('')
   }
-
-  const onHandlerStateChange = ({
-    nativeEvent,
-  }: HandlerStateChangeEventType) => {
+  const onHandlerStateChange = ({ nativeEvent }) => {
     if (nativeEvent.state === State.END) onOverlayRelease(nativeEvent)
   }
-
-  const checkCropBounds = ({ translationX, translationY }: Translate) => {
+  const checkCropBounds = ({ translationX, translationY }) => {
     let accDx = accumulatedPan.x + translationX
-
     if (accDx <= imageBounds.x) {
       accDx = imageBounds.x
     } else if (accDx + cropSize.width > imageBounds.width + imageBounds.x) {
       accDx = imageBounds.x + imageBounds.width - cropSize.width
     }
-
     let accDy = accumulatedPan.y + translationY
-
     if (accDy <= imageBounds.y) {
       accDy = imageBounds.y
     } else if (accDy + cropSize.height > imageBounds.height + imageBounds.y) {
       accDy = imageBounds.y + imageBounds.height - cropSize.height
     }
-
     panX.current.setValue(0)
     panY.current.setValue(0)
     setAccumulatedPan({ x: accDx, y: accDy })
   }
-
-  const checkResizeBounds = ({ translationX, translationY }: Translate) => {
+  const checkResizeBounds = ({ translationX, translationY }) => {
     let { width: maxWidth, height: maxHeight } = imageBounds
     const { width: minWidth, height: minHeight } = minimumCropDimensions
+    if (fixedAspectRatio !== 777) {
+      const height = maxWidth / fixedAspectRatio
+      if (maxHeight > height) maxHeight = height
 
-    const height = maxWidth / fixedAspectRatio
-    if (maxHeight > height) maxHeight = height
-
-    const width = maxHeight * fixedAspectRatio
-    if (maxWidth > width) maxWidth = width
-
+      const width = maxHeight * fixedAspectRatio
+      if (maxWidth > width) maxWidth = width
+    }
     const { x, y } = getTargetCropFrameBounds({ translationX, translationY })
     const animatedWidth = cropSize.width + x
     const animatedHeight = cropSize.height + y
     let finalHeight = animatedHeight
     let finalWidth = animatedWidth
-
     if (animatedHeight > maxHeight) {
       finalHeight = maxHeight
-      finalWidth = finalHeight * fixedAspectRatio
+      if (fixedAspectRatio !== 777) {
+        finalWidth = finalHeight * fixedAspectRatio
+      }
     } else if (animatedHeight < minHeight) {
       finalHeight = minHeight
-      finalWidth = finalHeight * fixedAspectRatio
+      if (fixedAspectRatio !== 777) {
+        finalWidth = finalHeight * fixedAspectRatio
+      }
     }
-
     if (animatedWidth > maxWidth) {
       finalWidth = maxWidth
-      finalHeight = maxHeight
+      if (fixedAspectRatio !== 777) {
+        finalHeight = maxHeight
+      }
     } else if (animatedWidth < minWidth) {
       finalWidth = minWidth
-      finalHeight = finalWidth / fixedAspectRatio
+      if (fixedAspectRatio !== 777) {
+        finalHeight = finalWidth / fixedAspectRatio
+      }
     }
-
     setAccumulatedPan({
       x: accumulatedPan.x + (isLeft ? -x : 0),
       y: accumulatedPan.y + (isTop ? -y : 0),
     })
-
     panX.current.setValue(0)
     panY.current.setValue(0)
-
     setCropSize({
       height: finalHeight,
       width: finalWidth,
     })
   }
-
   return (
     <View style={styles.container}>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -280,11 +241,19 @@ const ImageCropOverlay = () => {
                         key === 'topright' ||
                         key === 'bottomleft' ||
                         key === 'bottomright'
-                          ? coverMarker?.show && (
+                          ? (coverMarker === null || coverMarker === void 0
+                              ? void 0
+                              : coverMarker.show) && (
                               <View
                                 style={[
                                   styles.cornerMarker,
-                                  { borderColor: coverMarker?.color },
+                                  {
+                                    borderColor:
+                                      coverMarker === null ||
+                                      coverMarker === void 0
+                                        ? void 0
+                                        : coverMarker.color,
+                                  },
                                   horizontalSection === 'top'
                                     ? { top: -4, borderTopWidth: 7 }
                                     : { bottom: -4, borderBottomWidth: 7 },
@@ -307,9 +276,7 @@ const ImageCropOverlay = () => {
     </View>
   )
 }
-
 export { ImageCropOverlay }
-
 const styles = StyleSheet.create({
   container: {
     height: '100%',
