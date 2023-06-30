@@ -37,7 +37,7 @@ isRequired if there is a \* in the name field
 | name                      | Proptypes | Description                                                       |
 | ------------------------- | --------- | ----------------------------------------------------------------- |
 | **imageUri** \*           | string    | Image address that will be used for cropping                      |
-| **fixedAspectRatio** \*   | number    | Expect => aspect ratio.                                           |
+| **fixedAspectRatio** \*   | number    | Expect => aspect ratio. Use 777 to disable                        |
 | **minimumCropDimensions** | (size)    | Expect => {width: number, height: number} [Default 100 X 100].    |
 | **onEditingCancel** \*    | func      | void                                                              |
 | **onEditingComplete** \*  | func      | Returns image object (image object fields => uri, width, height). |
