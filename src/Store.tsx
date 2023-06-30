@@ -38,16 +38,16 @@ export const processingState = atom({
 export const accumulatedPanState = atom({
   key: 'accumulatedPanState',
   default: {
-    x: 0,
-    y: 0,
+    x: 100,
+    y: 100,
   },
 })
 
 export const cropSizeState = atom({
   key: 'cropSizeState',
   default: {
-    width: 0,
-    height: 0,
+    width: 200,
+    height: 200,
   },
 })
 
