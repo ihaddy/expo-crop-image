@@ -145,4 +145,4 @@ npm run build:watch
 
 ## This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Made with 💜 by [Bruno Alves](https://nito-dev.vercel.app/) 👋
+Made with 💜 by [Bruno Alves](https://nito-dev.vercel.app/) 👋 (and slightly edited by Tahsin Zaman)
