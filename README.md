@@ -27,7 +27,7 @@ Allows user to crop image with given aspect ratio for react native using expo on
 ## 🚀 How to install
 
 ```bash
-npm install expo-crop-image
+npm install @tahsinz21366/expo-crop-image
 ```
 
 ## ImageEditor
