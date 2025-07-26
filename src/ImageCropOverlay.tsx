@@ -30,6 +30,9 @@ const ImageCropOverlay = () => {
   })
   const panX = useRef(new Animated.Value(imageBounds.x))
   const panY = useRef(new Animated.Value(imageBounds.y))
+  // 🔧 ANDROID FIX: Track last translation to avoid stale END event values
+  const lastTx = useRef(0)
+  const lastTy = useRef(0)
   useEffect(() => {
     checkCropBounds({
       translationX: 0,
@@ -67,6 +70,10 @@ const ImageCropOverlay = () => {
   const onOverlayMove = ({ nativeEvent }) => {
     if (selectedFrameSection !== '') {
       if (isMovingSection()) {
+        // 🔧 ANDROID FIX: Capture last translation values to avoid stale END events
+        lastTx.current = nativeEvent.translationX ?? 0
+        lastTy.current = nativeEvent.translationY ?? 0
+        
         Animated.event(
           [
             {
@@ -128,9 +135,14 @@ const ImageCropOverlay = () => {
     return { x, y }
   }
   const onOverlayRelease = (nativeEvent) => {
+    // 🔧 ANDROID FIX: Use captured translation refs instead of potentially stale nativeEvent
+    const translationData = isMovingSection() 
+      ? { translationX: lastTx.current, translationY: lastTy.current }
+      : nativeEvent // Resize operations still use nativeEvent
+      
     isMovingSection()
-      ? checkCropBounds(nativeEvent)
-      : checkResizeBounds(nativeEvent)
+      ? checkCropBounds(translationData)
+      : checkResizeBounds(translationData)
     setSelectedFrameSection('')
   }
   const onHandlerStateChange = ({ nativeEvent }) => {
@@ -149,9 +161,14 @@ const ImageCropOverlay = () => {
     } else if (accDy + cropSize.height > imageBounds.height + imageBounds.y) {
       accDy = imageBounds.y + imageBounds.height - cropSize.height
     }
-    panX.current.setValue(0)
-    panY.current.setValue(0)
+    // 🔧 FIX: Update state first, then reset animations to prevent visual glitch
     setAccumulatedPan({ x: accDx, y: accDy })
+    
+    // Use requestAnimationFrame to ensure state renders before animation reset
+    requestAnimationFrame(() => {
+      panX.current.setValue(0)
+      panY.current.setValue(0)
+    })
   }
   const checkResizeBounds = ({ translationX, translationY }) => {
     let { width: maxWidth, height: maxHeight } = imageBounds
@@ -190,12 +207,18 @@ const ImageCropOverlay = () => {
         finalHeight = finalWidth / fixedAspectRatio
       }
     }
+    // 🔧 Y-AXIS FIX: Apply same requestAnimationFrame fix to resize bounds
+    // 🔧 Y-AXIS FIX: Apply same requestAnimationFrame fix to resize bounds
     setAccumulatedPan({
       x: accumulatedPan.x + (isLeft ? -x : 0),
       y: accumulatedPan.y + (isTop ? -y : 0),
     })
-    panX.current.setValue(0)
-    panY.current.setValue(0)
+    
+    // Use requestAnimationFrame for resize too (Y-axis specific fix)
+    requestAnimationFrame(() => {
+      panX.current.setValue(0)
+      panY.current.setValue(0)
+    })
     setCropSize({
       height: finalHeight,
       width: finalWidth,
